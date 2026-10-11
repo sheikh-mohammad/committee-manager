@@ -258,11 +258,66 @@ function screenMembers(id) {
     '<button class="btn" data-action="add-member" data-id="' + c.id + '">＋ ' + escapeHtml(t("addMember")) + "</button>" +
     "</div>";
 }
+/* --------------------------------- payments ------------------------------ */
+let paymentsMonth = currentMonthKey();
+
 function screenPayments(id) {
   const c = getCommittee(id);
   if (!c) { go("#/"); return; }
   setHeader(t("paymentsTitle"), true);
-  appEl.innerHTML = '<div class="empty">' + escapeHtml(t("paymentsTitle")) + "</div>";
+
+  if (c.members.length === 0) {
+    appEl.innerHTML = '<div class="empty"><span class="emoji">💵</span><h3>' +
+      escapeHtml(t("noMembersForPay")) + "</h3></div>" +
+      '<button class="btn btn-secondary" data-action="open-members" data-id="' + c.id + '">👥 ' +
+      escapeHtml(t("manageMembers")) + "</button>";
+    return;
+  }
+
+  const pays = getPayments(id, paymentsMonth);
+  const paidCount = c.members.filter(function (m) { return pays[m.id]; }).length;
+  const unpaidCount = c.members.length - paidCount;
+
+  let rows = '<ul class="list">';
+  c.members.forEach(function (m) {
+    const paid = !!pays[m.id];
+    rows +=
+      '<li class="list-item' + (paid ? " is-paid" : "") + '">' +
+      '<div class="avatar">' + escapeHtml(initials(m.name)) + "</div>" +
+      '<div class="item-main">' +
+      '<div class="item-title">' + escapeHtml(m.name) + "</div>" +
+      '<div class="item-sub">Rs ' + formatMoney(c.amount) + " · " +
+      '<span class="badge ' + (paid ? "badge-paid" : "badge-unpaid") + '">' +
+      escapeHtml(paid ? t("paid") : t("unpaid")) + "</span></div></div>" +
+      '<button class="btn btn-small ' + (paid ? "btn-ghost" : "") + '" data-action="toggle-paid" data-id="' + c.id +
+      '" data-mid="' + m.id + '">' + escapeHtml(paid ? t("markUnpaid") : t("markPaid")) + "</button>" +
+      "</li>";
+  });
+  rows += "</ul>";
+
+  appEl.innerHTML =
+    '<div class="card">' +
+    '<div class="btn-row" style="align-items:center">' +
+    '<button class="btn btn-ghost btn-small" data-action="pay-prev" data-id="' + c.id + '">‹</button>' +
+    '<div class="grow center"><strong style="font-size:1.15rem">' + escapeHtml(monthLabel(paymentsMonth)) + "</strong>" +
+    '<div class="muted" style="font-size:0.9rem">' + escapeHtml(t("due")) + ": " + escapeHtml(dueDateLabel(paymentsMonth, c.dueDay)) + "</div></div>" +
+    '<button class="btn btn-ghost btn-small" data-action="pay-next" data-id="' + c.id + '">›</button>' +
+    "</div></div>" +
+
+    '<div class="stat-grid mb">' +
+    '<div class="stat"><div class="num">' + formatNumber(paidCount) + '</div><div class="lbl">' + escapeHtml(t("paidCount")) + "</div></div>" +
+    '<div class="stat"><div class="num">' + formatNumber(unpaidCount) + '</div><div class="lbl">' + escapeHtml(t("unpaidCount")) + "</div></div>" +
+    "</div>" +
+
+    (unpaidCount === 0 ? '<div class="card center">🎉 ' + escapeHtml(t("allPaid")) + "</div>" : "") +
+    rows;
+}
+
+function shiftPaymentsMonth(id, delta) {
+  const { year, monthIndex } = parseMonthKey(paymentsMonth);
+  const d = new Date(year, monthIndex + delta, 1);
+  paymentsMonth = monthKey(d.getFullYear(), d.getMonth());
+  render();
 }
 function screenDraw(id) {
   const c = getCommittee(id);
@@ -327,6 +382,7 @@ appEl.addEventListener("click", function (e) {
       go("#/committee/" + id + "/members");
       break;
     case "open-payments":
+      paymentsMonth = currentMonthKey();
       go("#/committee/" + id + "/payments");
       break;
     case "open-draw":
@@ -380,6 +436,18 @@ appEl.addEventListener("click", function (e) {
       });
       break;
     }
+    case "toggle-paid": {
+      const mid = el.getAttribute("data-mid");
+      setPaid(id, paymentsMonth, mid, !isPaid(id, paymentsMonth, mid));
+      render();
+      break;
+    }
+    case "pay-prev":
+      shiftPaymentsMonth(id, -1);
+      break;
+    case "pay-next":
+      shiftPaymentsMonth(id, 1);
+      break;
   }
 });
 
