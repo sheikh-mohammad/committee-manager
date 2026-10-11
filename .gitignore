@@ -1,0 +1,17 @@
+# Dependencies (we don't need any, but just in case)
+node_modules/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor folders
+.vscode/
+.idea/
+
+# Vercel
+.vercel
+
+# Logs
+*.log
