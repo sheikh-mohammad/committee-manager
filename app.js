@@ -214,12 +214,49 @@ function screenCommittee(id) {
     '<button class="btn btn-danger-ghost" data-action="delete-committee" data-id="' + c.id + '">🗑️ ' + escapeHtml(t("deleteCommittee")) + "</button>";
 }
 
-/* screens filled in later commits */
+/* --------------------------------- members ------------------------------- */
 function screenMembers(id) {
   const c = getCommittee(id);
   if (!c) { go("#/"); return; }
   setHeader(t("membersTitle"), true);
-  appEl.innerHTML = '<div class="empty">' + escapeHtml(t("membersTitle")) + "</div>";
+
+  let list;
+  if (c.members.length === 0) {
+    list = '<div class="empty"><span class="emoji">👥</span><h3>' +
+      escapeHtml(t("noMembers")) + "</h3><p>" + escapeHtml(t("noMembersHint")) + "</p></div>";
+  } else {
+    list = '<ul class="list">';
+    c.members.forEach(function (m) {
+      const taken = m.receivedTurn != null;
+      list +=
+        '<li class="list-item">' +
+        '<div class="avatar' + (taken ? " received" : "") + '">' + escapeHtml(initials(m.name)) + "</div>" +
+        '<div class="item-main">' +
+        '<div class="item-title">' + escapeHtml(m.name) + "</div>" +
+        '<div class="item-sub">' + (m.whatsapp ? "📱 " + escapeHtml(m.whatsapp) : "") +
+        " · " + escapeHtml(taken ? t("turnReceivedOn") : t("noTurnYet")) +
+        "</div></div>" +
+        '<button class="btn-small btn-danger-ghost btn" data-action="remove-member" data-id="' + c.id +
+        '" data-mid="' + m.id + '">' + escapeHtml(t("removeMember")) + "</button>" +
+        "</li>";
+    });
+    list += "</ul>";
+  }
+
+  appEl.innerHTML =
+    list +
+    '<div class="card mt">' +
+    '<div class="field">' +
+    '<label for="f-mname">' + escapeHtml(t("memberName")) + "</label>" +
+    '<input id="f-mname" type="text" placeholder="' + escapeHtml(t("memberNamePh")) + '" />' +
+    "</div>" +
+    '<div class="field">' +
+    '<label for="f-mwa">' + escapeHtml(t("whatsappNumber")) + "</label>" +
+    '<input id="f-mwa" type="tel" inputmode="tel" placeholder="923001234567" />' +
+    '<div class="hint">' + escapeHtml(t("whatsappHint")) + "</div>" +
+    "</div>" +
+    '<button class="btn" data-action="add-member" data-id="' + c.id + '">＋ ' + escapeHtml(t("addMember")) + "</button>" +
+    "</div>";
 }
 function screenPayments(id) {
   const c = getCommittee(id);
@@ -326,6 +363,23 @@ appEl.addEventListener("click", function (e) {
       go("#/");
       openBackup();
       break;
+    case "add-member": {
+      const nameEl = document.getElementById("f-mname");
+      const waEl = document.getElementById("f-mwa");
+      const name = nameEl.value.trim();
+      if (!name) { toast(t("nameRequired")); nameEl.focus(); return; }
+      addMember(id, { name: name, whatsapp: waEl.value });
+      toast(t("memberAdded"));
+      render();
+      break;
+    }
+    case "remove-member": {
+      const mid = el.getAttribute("data-mid");
+      confirmBox(t("confirmRemoveMember"), t("removeMember")).then(function (yes) {
+        if (yes) { removeMember(id, mid); toast(t("memberRemoved")); render(); }
+      });
+      break;
+    }
   }
 });
 
