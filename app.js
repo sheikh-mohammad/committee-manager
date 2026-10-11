@@ -68,6 +68,7 @@ function parseRoute() {
   const h = location.hash.replace(/^#\/?/, "");
   const parts = h.split("/").filter(Boolean);
   if (parts[0] === "new") return { name: "new" };
+  if (parts[0] === "backup") return { name: "backup" };
   if (parts[0] === "committee" && parts[1]) {
     const id = parts[1];
     const sub = parts[2];
@@ -479,6 +480,31 @@ function screenShare(id) {
     escapeHtml(t("copyText")) + "</button>";
 }
 
+/* --------------------------------- backup -------------------------------- */
+function screenBackup() {
+  setHeader(t("backup"), true);
+  appEl.innerHTML =
+    '<div class="card">' +
+    '<p class="muted">' + escapeHtml(t("exportHint")) + "</p>" +
+    '<button class="btn mb" data-action="export-data">⬇️ ' + escapeHtml(t("exportData")) + "</button>" +
+    '<button class="btn btn-secondary" data-action="import-data">⬆️ ' + escapeHtml(t("importData")) + "</button>" +
+    '<input type="file" id="importFile" accept="application/json,.json" class="hidden" />' +
+    "</div>";
+}
+
+function downloadBackup() {
+  const blob = new Blob([exportData()], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "committee-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast(t("exportDone"));
+}
+
 /* --------------------------------- render -------------------------------- */
 function render() {
   const route = parseRoute();
@@ -490,6 +516,7 @@ function render() {
     case "payments": screenPayments(route.id); break;
     case "draw": screenDraw(route.id); break;
     case "share": screenShare(route.id); break;
+    case "backup": screenBackup(); break;
     default: screenHome();
   }
   window.scrollTo(0, 0);
@@ -564,8 +591,7 @@ appEl.addEventListener("click", function (e) {
       });
       break;
     case "backup":
-      go("#/");
-      openBackup();
+      go("#/backup");
       break;
     case "add-member": {
       const nameEl = document.getElementById("f-mname");
@@ -636,6 +662,34 @@ appEl.addEventListener("click", function (e) {
       }
       break;
     }
+    case "export-data":
+      downloadBackup();
+      break;
+    case "import-data": {
+      const input = document.getElementById("importFile");
+      if (input) input.click();
+      break;
+    }
+  }
+});
+
+/* import file picker (change event) */
+appEl.addEventListener("change", function (e) {
+  if (e.target && e.target.id === "importFile") {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function () {
+      try {
+        importData(String(reader.result));
+        toast(t("importDone"));
+        go("#/");
+        render();
+      } catch (err) {
+        toast(t("importError"));
+      }
+    };
+    reader.readAsText(file);
   }
 });
 
@@ -650,9 +704,6 @@ langEl.addEventListener("click", function () {
   saveLang(next);
   render();
 });
-
-/* backup is implemented in a later commit */
-function openBackup() { toast("Backup"); }
 
 window.addEventListener("hashchange", render);
 
