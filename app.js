@@ -278,22 +278,28 @@ function screenPayments(id) {
   const paidCount = c.members.filter(function (m) { return pays[m.id]; }).length;
   const unpaidCount = c.members.length - paidCount;
 
-  let rows = '<ul class="list">';
+  let rows = "";
   c.members.forEach(function (m) {
     const paid = !!pays[m.id];
     rows +=
-      '<li class="list-item' + (paid ? " is-paid" : "") + '">' +
+      '<div class="card' + (paid ? " is-paid" : "") + '">' +
+      '<div style="display:flex;align-items:center;gap:12px">' +
       '<div class="avatar">' + escapeHtml(initials(m.name)) + "</div>" +
       '<div class="item-main">' +
       '<div class="item-title">' + escapeHtml(m.name) + "</div>" +
       '<div class="item-sub">Rs ' + formatMoney(c.amount) + " · " +
       '<span class="badge ' + (paid ? "badge-paid" : "badge-unpaid") + '">' +
       escapeHtml(paid ? t("paid") : t("unpaid")) + "</span></div></div>" +
-      '<button class="btn btn-small ' + (paid ? "btn-ghost" : "") + '" data-action="toggle-paid" data-id="' + c.id +
+      "</div>" +
+      '<div class="btn-row mt">' +
+      (paid ? "" :
+        '<button class="btn btn-wa" data-action="remind-member" data-id="' + c.id +
+        '" data-mid="' + m.id + '">💬 ' + escapeHtml(t("remind")) + "</button>") +
+      '<button class="btn ' + (paid ? "btn-ghost" : "btn-secondary") + '" data-action="toggle-paid" data-id="' + c.id +
       '" data-mid="' + m.id + '">' + escapeHtml(paid ? t("markUnpaid") : t("markPaid")) + "</button>" +
-      "</li>";
+      "</div>" +
+      "</div>";
   });
-  rows += "</ul>";
 
   appEl.innerHTML =
     '<div class="card">' +
@@ -424,11 +430,53 @@ function runDraw(id) {
     }
   }, 90);
 }
+/* ------------------------------ reminders / share ------------------------ */
+function waReminderMessage(c, m) {
+  const amount = "Rs " + (Number(c.amount) || 0).toLocaleString("en-US");
+  const due = dueDateLabelLatin(paymentsMonth, c.dueDay);
+  return "Assalam o Alaikum " + m.name + ", committee ki qist " + amount + " " + due + " tak. Shukriya!";
+}
+
+function openWhatsApp(number, text) {
+  const url = "https://wa.me/" + (number || "") + "?text=" + encodeURIComponent(text);
+  window.open(url, "_blank");
+}
+
+function buildSummary(c) {
+  const month = paymentsMonth;
+  const pays = getPayments(c.id, month);
+  const paid = c.members.filter(function (m) { return !!pays[m.id]; });
+  const unpaid = c.members.filter(function (m) { return !pays[m.id]; });
+  const turn = getTurnForMonth(c.id, month);
+
+  const lines = [];
+  lines.push("Committee: " + c.name);
+  lines.push("Month: " + dueDateLabelLatin(month, 1) + "  |  Due: " + dueDateLabelLatin(month, c.dueDay));
+  lines.push("");
+  lines.push("PAID (" + paid.length + "):");
+  paid.forEach(function (m) { lines.push("- " + m.name); });
+  lines.push("");
+  lines.push("NOT PAID (" + unpaid.length + "):");
+  unpaid.forEach(function (m) { lines.push("- " + m.name); });
+  lines.push("");
+  lines.push("Turn: " + (turn ? turn.name + " (Turn " + turn.turnNumber + ")" : "not drawn yet"));
+  return lines.join("\n");
+}
+
 function screenShare(id) {
   const c = getCommittee(id);
   if (!c) { go("#/"); return; }
   setHeader(t("shareTitle"), true);
-  appEl.innerHTML = '<div class="empty">' + escapeHtml(t("shareTitle")) + "</div>";
+
+  const summary = buildSummary(c);
+
+  appEl.innerHTML =
+    '<p class="muted">' + escapeHtml(t("shareIntro")) + "</p>" +
+    '<div class="summary-box mb">' + escapeHtml(summary) + "</div>" +
+    '<button class="btn btn-wa mb" data-action="share-wa" data-id="' + c.id + '">📤 ' +
+    escapeHtml(t("shareWhatsapp")) + "</button>" +
+    '<button class="btn btn-ghost" data-action="copy-summary" data-id="' + c.id + '">📋 ' +
+    escapeHtml(t("copyText")) + "</button>";
 }
 
 /* --------------------------------- render -------------------------------- */
@@ -488,6 +536,7 @@ appEl.addEventListener("click", function (e) {
       go("#/committee/" + id + "/draw");
       break;
     case "open-share":
+      paymentsMonth = currentMonthKey();
       go("#/committee/" + id + "/share");
       break;
     case "edit-committee":
@@ -550,6 +599,43 @@ appEl.addEventListener("click", function (e) {
     case "draw-go":
       runDraw(id);
       break;
+    case "remind-member": {
+      const mid = el.getAttribute("data-mid");
+      const c = getCommittee(id);
+      const m = c && c.members.find(function (x) { return x.id === mid; });
+      if (!c || !m) return;
+      if (!m.whatsapp) { toast(t("whatsappInvalid")); return; }
+      openWhatsApp(m.whatsapp, waReminderMessage(c, m));
+      break;
+    }
+    case "share-wa": {
+      const c = getCommittee(id);
+      if (!c) return;
+      const summary = buildSummary(c);
+      if (navigator.share) {
+        navigator.share({ text: summary }).catch(function () {});
+      } else {
+        openWhatsApp("", summary);
+      }
+      break;
+    }
+    case "copy-summary": {
+      const c = getCommittee(id);
+      if (!c) return;
+      const summary = buildSummary(c);
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(summary).then(function () { toast(t("copied")); });
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = summary;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+        toast(t("copied"));
+      }
+      break;
+    }
   }
 });
 

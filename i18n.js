@@ -280,6 +280,13 @@ function dueDateLabel(key, day) {
   return d + " " + MONTHS_EN_SHORT[monthIndex] + " " + year;
 }
 
+// Always-Latin date (for the Roman-Urdu WhatsApp message), e.g. "5 Oct 2026"
+function dueDateLabelLatin(key, day) {
+  const { year, monthIndex } = parseMonthKey(key);
+  const d = Math.min(day, daysInMonth(year, monthIndex));
+  return d + " " + MONTHS_EN_SHORT[monthIndex] + " " + year;
+}
+
 const URDU_DIGITS = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
 
 function toUrduDigits(str) {
