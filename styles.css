@@ -269,8 +269,11 @@ html[dir="rtl"] .section-title { text-transform: none; letter-spacing: 0; }
 .badge-unpaid { background: var(--danger-light); color: var(--danger); }
 .badge-turn { background: var(--warn-light); color: var(--warn); }
 
-/* A row that is fully paid gets a soft green tint */
-.list-item.is-paid { background: linear-gradient(0deg, rgba(31,122,77,0.06), rgba(31,122,77,0.06)), #fff; }
+/* A row/card that is fully paid gets a soft green tint */
+.list-item.is-paid,
+.card.is-paid {
+  background: linear-gradient(0deg, rgba(31,122,77,0.06), rgba(31,122,77,0.06)), #fff;
+}
 
 /* --------------------------------------------------------------------------
    Forms
