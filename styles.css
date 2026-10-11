@@ -1,1 +1,456 @@
-/* Styles will be added in the next step. */
+/* ==========================================================================
+   Committee Manager — styles
+   Mobile-first. Big buttons, large text, high contrast.
+   ========================================================================== */
+
+:root {
+  --green: #1f7a4d;
+  --green-dark: #145c39;
+  --green-light: #e6f4ec;
+  --accent: #c8a24a;       /* gold */
+  --danger: #c0392b;
+  --danger-light: #fdecea;
+  --warn: #b8860b;
+  --warn-light: #fdf3d8;
+  --ink: #14231a;
+  --muted: #5c6b62;
+  --line: #d9e2dc;
+  --bg: #f3f7f4;
+  --card: #ffffff;
+  --radius: 16px;
+  --radius-sm: 12px;
+  --shadow: 0 2px 10px rgba(20, 35, 26, 0.08);
+
+  /* Base font size is intentionally large for older eyes on small screens */
+  font-size: 18px;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Segoe UI", "Noto Naskh Arabic", Tahoma, system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.5;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Urdu mode: use a font stack that renders Nastaliq/Naskh nicely */
+html[dir="rtl"] body {
+  font-family: "Noto Nastaliq Urdu", "Noto Naskh Arabic", "Jameel Noori Nastaleeq", Tahoma, sans-serif;
+  line-height: 1.9;
+}
+
+.hidden { display: none !important; }
+
+/* --------------------------------------------------------------------------
+   Top bar
+   -------------------------------------------------------------------------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--green);
+  color: #fff;
+  padding: 10px 12px;
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  min-height: 60px;
+}
+
+.app-title {
+  flex: 1;
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.icon-btn,
+.lang-btn {
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  border-radius: 12px;
+  min-width: 52px;
+  height: 44px;
+  padding: 0 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn:active,
+.lang-btn:active { background: rgba(255, 255, 255, 0.34); }
+
+/* --------------------------------------------------------------------------
+   Layout
+   -------------------------------------------------------------------------- */
+.app {
+  padding: 14px 14px 40px;
+  max-width: 640px;
+  margin: 0 auto;
+  padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+}
+
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin: 18px 4px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+html[dir="rtl"] .section-title { text-transform: none; letter-spacing: 0; }
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.muted { color: var(--muted); }
+.center { text-align: center; }
+.mt { margin-top: 14px; }
+.mb { margin-bottom: 14px; }
+.grow { flex: 1; }
+
+/* --------------------------------------------------------------------------
+   Buttons — big and friendly
+   -------------------------------------------------------------------------- */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 16px 18px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: var(--green);
+  color: #fff;
+  min-height: 58px;
+  transition: transform 0.06s ease, filter 0.15s ease;
+}
+
+.btn:active { transform: scale(0.98); filter: brightness(0.95); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-secondary {
+  background: #fff;
+  color: var(--green-dark);
+  border: 2px solid var(--green);
+}
+
+.btn-ghost {
+  background: #eef3f0;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.btn-danger { background: var(--danger); }
+.btn-danger-ghost { background: var(--danger-light); color: var(--danger); }
+.btn-wa { background: #25d366; }
+.btn-gold { background: var(--accent); color: #3a2c05; }
+
+.btn-small {
+  width: auto;
+  min-height: 46px;
+  padding: 10px 16px;
+  font-size: 1rem;
+  border-radius: 12px;
+}
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+}
+.btn-row > .btn { flex: 1; }
+
+/* Big call-to-action used on the Draw screen */
+.btn-mega {
+  min-height: 96px;
+  font-size: 1.5rem;
+  border-radius: 22px;
+  box-shadow: 0 6px 0 var(--green-dark);
+  letter-spacing: 0.01em;
+}
+.btn-mega:active { transform: translateY(3px); box-shadow: 0 3px 0 var(--green-dark); }
+
+/* --------------------------------------------------------------------------
+   Lists
+   -------------------------------------------------------------------------- */
+.list { list-style: none; margin: 0; padding: 0; }
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.list-item.tappable { cursor: pointer; }
+.list-item.tappable:active { background: #f3f7f4; }
+
+.item-main { flex: 1; min-width: 0; }
+
+.item-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-sub {
+  font-size: 0.95rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avatar {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  border-radius: 50%;
+  background: var(--green-light);
+  color: var(--green-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.15rem;
+}
+
+.avatar.received { background: var(--warn-light); color: var(--warn); }
+
+/* Paid / unpaid badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.badge-paid { background: var(--green-light); color: var(--green-dark); }
+.badge-unpaid { background: var(--danger-light); color: var(--danger); }
+.badge-turn { background: var(--warn-light); color: var(--warn); }
+
+/* A row that is fully paid gets a soft green tint */
+.list-item.is-paid { background: linear-gradient(0deg, rgba(31,122,77,0.06), rgba(31,122,77,0.06)), #fff; }
+
+/* --------------------------------------------------------------------------
+   Forms
+   -------------------------------------------------------------------------- */
+.field { margin-bottom: 16px; }
+
+.field > label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 6px;
+  font-size: 1rem;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  font-size: 1.2rem;
+  padding: 15px 14px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--ink);
+  font-family: inherit;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(31, 122, 77, 0.15);
+}
+
+.field .hint {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.field-row {
+  display: flex;
+  gap: 12px;
+}
+.field-row .field { flex: 1; }
+
+/* --------------------------------------------------------------------------
+   Draw screen
+   -------------------------------------------------------------------------- */
+.draw-stage {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 26px 16px;
+  text-align: center;
+  min-height: 190px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.draw-label { color: var(--muted); font-weight: 700; }
+
+.draw-name {
+  font-size: 2.1rem;
+  font-weight: 900;
+  color: var(--green-dark);
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.draw-name.rolling { color: var(--accent); }
+
+.draw-turn {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--warn);
+}
+
+.draw-stage.win {
+  animation: pop 0.5s ease;
+  background: var(--green-light);
+}
+
+@keyframes pop {
+  0% { transform: scale(0.94); }
+  55% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+/* --------------------------------------------------------------------------
+   Toast
+   -------------------------------------------------------------------------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--ink);
+  color: #fff;
+  padding: 14px 22px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 1rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 60;
+  max-width: 90vw;
+  text-align: center;
+}
+
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Modal / confirm */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 50;
+  padding: 16px;
+}
+
+.modal {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 20px;
+  width: 100%;
+  max-width: 480px;
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.modal p { margin-top: 0; font-size: 1.05rem; }
+
+/* --------------------------------------------------------------------------
+   Misc
+   -------------------------------------------------------------------------- */
+.empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--muted);
+}
+
+.empty .emoji { font-size: 2.6rem; display: block; margin-bottom: 10px; }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.stat {
+  background: var(--card);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 14px;
+  text-align: center;
+}
+
+.stat .num { font-size: 1.6rem; font-weight: 900; color: var(--green-dark); }
+.stat .lbl { font-size: 0.9rem; color: var(--muted); font-weight: 700; }
+
+.summary-box {
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f7faf8;
+  border: 2px dashed var(--line);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  font-size: 1rem;
+  line-height: 1.7;
+  max-height: 320px;
+  overflow: auto;
+}
+
+@media (min-width: 560px) {
+  .app-title { font-size: 1.35rem; }
+}
