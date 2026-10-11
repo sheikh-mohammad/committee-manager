@@ -319,11 +319,110 @@ function shiftPaymentsMonth(id, delta) {
   paymentsMonth = monthKey(d.getFullYear(), d.getMonth());
   render();
 }
+/* ----------------------------------- draw -------------------------------- */
+let drawing = false;
+
+function drawHistoryHTML(c) {
+  if (c.draws.length === 0) return "";
+  let rows = '<h3 class="section-title">' + escapeHtml(t("history")) + "</h3><ul class='list'>";
+  c.draws.slice().reverse().forEach(function (d) {
+    rows +=
+      '<li class="list-item">' +
+      '<div class="avatar received">' + escapeHtml(formatNumber(d.turnNumber)) + "</div>" +
+      '<div class="item-main">' +
+      '<div class="item-title">' + escapeHtml(d.name) + "</div>" +
+      '<div class="item-sub">' + escapeHtml(t("turnNo")) + " " + escapeHtml(formatNumber(d.turnNumber)) +
+      " · " + escapeHtml(monthLabel(d.month)) + "</div></div>" +
+      '<span class="badge badge-turn">✓</span>' +
+      "</li>";
+  });
+  rows += "</ul>";
+  return rows;
+}
+
 function screenDraw(id) {
   const c = getCommittee(id);
   if (!c) { go("#/"); return; }
   setHeader(t("drawTitle"), true);
-  appEl.innerHTML = '<div class="empty">' + escapeHtml(t("drawTitle")) + "</div>";
+
+  const month = currentMonthKey();
+  const monthTurn = getTurnForMonth(id, month);
+  const remaining = membersNotReceived(id).length;
+
+  let stage, controls;
+
+  if (c.members.length < 2) {
+    stage =
+      '<div class="draw-stage"><div class="draw-name">👥</div>' +
+      '<div class="draw-label">' + escapeHtml(t("notEnoughMembers")) + "</div></div>";
+    controls =
+      '<button class="btn btn-secondary mt" data-action="open-members" data-id="' + c.id + '">👥 ' +
+      escapeHtml(t("manageMembers")) + "</button>";
+  } else if (monthTurn) {
+    stage =
+      '<div class="draw-stage win"><div class="draw-label">' + escapeHtml(monthLabel(month)) + "</div>" +
+      '<div class="draw-name">' + escapeHtml(monthTurn.name) + "</div>" +
+      '<div class="draw-turn">' + escapeHtml(t("turnNo")) + " " + escapeHtml(formatNumber(monthTurn.turnNumber)) +
+      " · " + escapeHtml(t("congrats")) + "</div></div>";
+    controls = '<div class="card center mt muted">🔒 ' + escapeHtml(t("drawLockedHint")) + "</div>";
+  } else if (remaining === 0) {
+    stage =
+      '<div class="draw-stage"><div class="draw-name">🎉</div>' +
+      '<div class="draw-label">' + escapeHtml(t("allReceived")) + "</div></div>";
+    controls = "";
+  } else {
+    stage =
+      '<div class="draw-stage"><div class="draw-label">' + escapeHtml(monthLabel(month)) + "</div>" +
+      '<div class="draw-name">🎡</div>' +
+      '<div class="draw-turn">' + escapeHtml(t("drawingNow")) + " · " + formatNumber(remaining) + "</div></div>";
+    controls =
+      '<button class="btn btn-mega mt" data-action="draw-go" data-id="' + c.id + '">🎡 ' +
+      escapeHtml(t("drawBtn")) + "</button>" +
+      '<div class="center muted mt">' + escapeHtml(t("drawLockedHint")) + "</div>";
+  }
+
+  appEl.innerHTML = stage + controls + '<div class="mt">' + drawHistoryHTML(c) + "</div>";
+}
+
+function runDraw(id) {
+  if (drawing) return;
+  const month = currentMonthKey();
+  const res = drawNextTurn(id, month);
+
+  if (res.error === "few-members") { toast(t("notEnoughMembers")); return; }
+  if (res.locked || res.done || res.error) { render(); return; }
+
+  drawing = true;
+  const c = getCommittee(id);
+  const names = c.members.map(function (m) { return m.name; });
+  const nameEl = appEl.querySelector(".draw-name");
+  const turnEl = appEl.querySelector(".draw-turn");
+  const stageEl = appEl.querySelector(".draw-stage");
+  const btn = appEl.querySelector('[data-action="draw-go"]');
+
+  if (btn) { btn.disabled = true; btn.textContent = t("drawBtnAgain"); }
+  if (nameEl) nameEl.classList.add("rolling");
+  if (turnEl) turnEl.textContent = t("drawingNow");
+
+  let ticks = 0;
+  const total = 22;
+  const timer = setInterval(function () {
+    if (nameEl) nameEl.textContent = names[Math.floor(Math.random() * names.length)];
+    ticks++;
+    if (ticks >= total) {
+      clearInterval(timer);
+      if (nameEl) {
+        nameEl.classList.remove("rolling");
+        nameEl.textContent = res.member.name;
+      }
+      if (turnEl) {
+        turnEl.textContent = t("turnNo") + " " + formatNumber(res.turnNumber) + " · " + t("congrats");
+      }
+      if (stageEl) stageEl.classList.add("win");
+      drawing = false;
+      setTimeout(render, 1700);
+    }
+  }, 90);
 }
 function screenShare(id) {
   const c = getCommittee(id);
@@ -447,6 +546,9 @@ appEl.addEventListener("click", function (e) {
       break;
     case "pay-next":
       shiftPaymentsMonth(id, 1);
+      break;
+    case "draw-go":
+      runDraw(id);
       break;
   }
 });
