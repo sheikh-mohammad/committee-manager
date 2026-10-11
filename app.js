@@ -1,1 +1,352 @@
-// App logic will be added here.
+/* ==========================================================================
+   app.js — screens, navigation and interactions
+   ========================================================================== */
+
+const appEl = document.getElementById("app");
+const titleEl = document.getElementById("appTitle");
+const backEl = document.getElementById("btnBack");
+const langEl = document.getElementById("btnLang");
+
+/* ------------------------------- small helpers --------------------------- */
+function escapeHtml(str) {
+  return String(str == null ? "" : str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function initials(name) {
+  const parts = String(name || "?").trim().split(/\s+/);
+  return parts[0] ? parts[0][0].toUpperCase() : "?";
+}
+
+let toastTimer = null;
+function toast(msg) {
+  let el = document.getElementById("toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "toast";
+    el.className = "toast";
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { el.classList.remove("show"); }, 2200);
+}
+
+// Bottom-sheet confirm dialog
+function confirmBox(message, confirmLabel) {
+  return new Promise(function (resolve) {
+    const backdrop = document.createElement("div");
+    backdrop.className = "modal-backdrop";
+    backdrop.innerHTML =
+      '<div class="modal">' +
+      '<p>' + escapeHtml(message) + '</p>' +
+      '<div class="btn-row">' +
+      '<button class="btn btn-ghost" data-res="no">' + escapeHtml(t("cancel")) + '</button>' +
+      '<button class="btn btn-danger" data-res="yes">' + escapeHtml(confirmLabel || t("yes")) + '</button>' +
+      '</div></div>';
+    document.body.appendChild(backdrop);
+    backdrop.addEventListener("click", function (e) {
+      if (e.target === backdrop) { backdrop.remove(); resolve(false); return; }
+      const res = e.target.getAttribute && e.target.getAttribute("data-res");
+      if (res) { backdrop.remove(); resolve(res === "yes"); }
+    });
+  });
+}
+
+/* --------------------------------- routing ------------------------------- */
+function go(hash) {
+  if (location.hash === hash) render();
+  else location.hash = hash;
+}
+
+function parseRoute() {
+  const h = location.hash.replace(/^#\/?/, "");
+  const parts = h.split("/").filter(Boolean);
+  if (parts[0] === "new") return { name: "new" };
+  if (parts[0] === "committee" && parts[1]) {
+    const id = parts[1];
+    const sub = parts[2];
+    if (sub === "members") return { name: "members", id: id };
+    if (sub === "payments") return { name: "payments", id: id };
+    if (sub === "draw") return { name: "draw", id: id };
+    if (sub === "share") return { name: "share", id: id };
+    if (sub === "edit") return { name: "edit", id: id };
+    return { name: "committee", id: id };
+  }
+  return { name: "home" };
+}
+
+function setHeader(title, showBack) {
+  titleEl.textContent = title;
+  backEl.classList.toggle("hidden", !showBack);
+  langEl.textContent = LANG === "en" ? "اردو" : "English";
+}
+
+/* ---------------------------------- screens ------------------------------ */
+function screenHome() {
+  const committees = getCommittees();
+  setHeader(t("appName"), false);
+
+  let body;
+  if (committees.length === 0) {
+    body =
+      '<div class="empty">' +
+      '<span class="emoji">🤝</span>' +
+      '<h2>' + escapeHtml(t("noCommittees")) + "</h2>" +
+      '<p>' + escapeHtml(t("noCommitteesHint")) + "</p>" +
+      "</div>";
+  } else {
+    body = '<ul class="list">';
+    committees.forEach(function (c) {
+      const received = c.members.filter(function (m) { return m.receivedTurn != null; }).length;
+      body +=
+        '<li class="list-item tappable" data-action="open-committee" data-id="' + c.id + '">' +
+        '<div class="avatar">' + escapeHtml(initials(c.name)) + "</div>" +
+        '<div class="item-main">' +
+        '<div class="item-title">' + escapeHtml(c.name) + "</div>" +
+        '<div class="item-sub">Rs ' + formatMoney(c.amount) + " · " +
+        formatNumber(c.members.length) + " " + escapeHtml(t("members")) +
+        " · " + formatNumber(received) + "/" + formatNumber(c.draws.length) +
+        "</div></div>" +
+        '<span class="badge badge-turn">›</span>' +
+        "</li>";
+    });
+    body += "</ul>";
+  }
+
+  appEl.innerHTML =
+    body +
+    '<div class="mt">' +
+    '<button class="btn" data-action="new-committee">＋ ' + escapeHtml(t("newCommittee")) + "</button>" +
+    "</div>" +
+    '<div class="mt">' +
+    '<button class="btn btn-ghost" data-action="backup">🗄️ ' + escapeHtml(t("backup")) + "</button>" +
+    "</div>";
+}
+
+function committeeFormHTML(c) {
+  const isEdit = !!c;
+  const data = c || {
+    name: "",
+    amount: "",
+    membersCount: "",
+    startMonth: currentMonthKey(),
+    dueDay: 5,
+  };
+  const dayOptions = [];
+  for (let d = 1; d <= 28; d++) {
+    dayOptions.push(
+      '<option value="' + d + '"' + (Number(data.dueDay) === d ? " selected" : "") + ">" + d + "</option>"
+    );
+  }
+
+  return (
+    '<div class="card">' +
+    '<div class="field">' +
+    '<label for="f-name">' + escapeHtml(t("committeeName")) + "</label>" +
+    '<input id="f-name" type="text" inputmode="text" placeholder="' + escapeHtml(t("committeeNamePh")) + '" value="' + escapeHtml(data.name) + '" />' +
+    "</div>" +
+
+    '<div class="field">' +
+    '<label for="f-amount">' + escapeHtml(t("monthlyAmount")) + "</label>" +
+    '<input id="f-amount" type="number" inputmode="numeric" min="1" step="1" placeholder="5000" value="' + escapeHtml(data.amount) + '" />' +
+    "</div>" +
+
+    '<div class="field-row">' +
+    '<div class="field">' +
+    '<label for="f-count">' + escapeHtml(t("numberOfMembers")) + "</label>" +
+    '<input id="f-count" type="number" inputmode="numeric" min="2" step="1" placeholder="10" value="' + escapeHtml(data.membersCount) + '" />' +
+    "</div>" +
+    '<div class="field">' +
+    '<label for="f-day">' + escapeHtml(t("dueDay")) + "</label>" +
+    '<select id="f-day">' + dayOptions.join("") + "</select>" +
+    "</div></div>" +
+
+    '<div class="field">' +
+    '<label for="f-start">' + escapeHtml(t("startMonth")) + "</label>" +
+    '<input id="f-start" type="month" value="' + escapeHtml(data.startMonth) + '" />' +
+    "</div>" +
+
+    '<button class="btn" data-action="' + (isEdit ? "save-edit-committee" : "save-committee") + '" data-id="' + (isEdit ? c.id : "") + '">' +
+    "💾 " + escapeHtml(isEdit ? t("updateCommittee") : t("createCommittee")) +
+    "</button>" +
+    "</div>"
+  );
+}
+
+function screenNew() {
+  setHeader(t("newCommittee"), true);
+  appEl.innerHTML = committeeFormHTML(null);
+}
+
+function screenEdit(id) {
+  const c = getCommittee(id);
+  if (!c) { go("#/"); return; }
+  setHeader(t("editCommittee"), true);
+  appEl.innerHTML = committeeFormHTML(c);
+}
+
+function screenCommittee(id) {
+  const c = getCommittee(id);
+  if (!c) { go("#/"); return; }
+  setHeader(c.name, true);
+
+  const received = c.members.filter(function (m) { return m.receivedTurn != null; }).length;
+
+  appEl.innerHTML =
+    '<div class="stat-grid mb">' +
+    '<div class="stat"><div class="num">Rs ' + formatMoney(c.amount) + '</div><div class="lbl">' + escapeHtml(t("perMonth")) + "</div></div>" +
+    '<div class="stat"><div class="num">' + formatNumber(c.members.length) + '</div><div class="lbl">' + escapeHtml(t("members")) + "</div></div>" +
+    '<div class="stat"><div class="num">' + formatNumber(received) + '</div><div class="lbl">' + escapeHtml(t("received")) + "</div></div>" +
+    '<div class="stat"><div class="num">' + escapeHtml(dueDateLabel(c.startMonth, c.dueDay)) + '</div><div class="lbl">' + escapeHtml(t("due")) + "</div></div>" +
+    "</div>" +
+
+    '<button class="btn mb" data-action="open-payments" data-id="' + c.id + '">💵 ' + escapeHtml(t("monthlyPayments")) + "</button>" +
+    '<button class="btn mb" data-action="open-draw" data-id="' + c.id + '">🎡 ' + escapeHtml(t("drawNextTurn")) + "</button>" +
+    '<button class="btn btn-secondary mb" data-action="open-members" data-id="' + c.id + '">👥 ' + escapeHtml(t("manageMembers")) + "</button>" +
+    '<button class="btn btn-ghost mb" data-action="open-share" data-id="' + c.id + '">📤 ' + escapeHtml(t("shareSummary")) + "</button>" +
+    '<button class="btn btn-ghost mb" data-action="edit-committee" data-id="' + c.id + '">✏️ ' + escapeHtml(t("editCommittee")) + "</button>" +
+    '<button class="btn btn-danger-ghost" data-action="delete-committee" data-id="' + c.id + '">🗑️ ' + escapeHtml(t("deleteCommittee")) + "</button>";
+}
+
+/* screens filled in later commits */
+function screenMembers(id) {
+  const c = getCommittee(id);
+  if (!c) { go("#/"); return; }
+  setHeader(t("membersTitle"), true);
+  appEl.innerHTML = '<div class="empty">' + escapeHtml(t("membersTitle")) + "</div>";
+}
+function screenPayments(id) {
+  const c = getCommittee(id);
+  if (!c) { go("#/"); return; }
+  setHeader(t("paymentsTitle"), true);
+  appEl.innerHTML = '<div class="empty">' + escapeHtml(t("paymentsTitle")) + "</div>";
+}
+function screenDraw(id) {
+  const c = getCommittee(id);
+  if (!c) { go("#/"); return; }
+  setHeader(t("drawTitle"), true);
+  appEl.innerHTML = '<div class="empty">' + escapeHtml(t("drawTitle")) + "</div>";
+}
+function screenShare(id) {
+  const c = getCommittee(id);
+  if (!c) { go("#/"); return; }
+  setHeader(t("shareTitle"), true);
+  appEl.innerHTML = '<div class="empty">' + escapeHtml(t("shareTitle")) + "</div>";
+}
+
+/* --------------------------------- render -------------------------------- */
+function render() {
+  const route = parseRoute();
+  switch (route.name) {
+    case "new": screenNew(); break;
+    case "edit": screenEdit(route.id); break;
+    case "committee": screenCommittee(route.id); break;
+    case "members": screenMembers(route.id); break;
+    case "payments": screenPayments(route.id); break;
+    case "draw": screenDraw(route.id); break;
+    case "share": screenShare(route.id); break;
+    default: screenHome();
+  }
+  window.scrollTo(0, 0);
+}
+
+/* ------------------------------- form values ----------------------------- */
+function readCommitteeForm(c) {
+  const name = document.getElementById("f-name").value.trim();
+  const amount = document.getElementById("f-amount").value;
+  const count = document.getElementById("f-count").value;
+  const day = document.getElementById("f-day").value;
+  const start = document.getElementById("f-start").value;
+
+  if (!name) { toast(t("nameRequired")); return null; }
+  if (!amount || Number(amount) <= 0) { toast(t("amountRequired")); return null; }
+  if (!count || Number(count) < 2) { toast(t("membersRequired")); return null; }
+  if (!day || Number(day) < 1 || Number(day) > 28) { toast(t("dayRequired")); return null; }
+
+  return { name: name, amount: amount, membersCount: count, dueDay: day, startMonth: start || currentMonthKey() };
+}
+
+/* --------------------------------- events -------------------------------- */
+appEl.addEventListener("click", function (e) {
+  const el = e.target.closest("[data-action]");
+  if (!el) return;
+  const action = el.getAttribute("data-action");
+  const id = el.getAttribute("data-id");
+
+  switch (action) {
+    case "new-committee":
+      go("#/new");
+      break;
+    case "open-committee":
+      go("#/committee/" + id);
+      break;
+    case "open-members":
+      go("#/committee/" + id + "/members");
+      break;
+    case "open-payments":
+      go("#/committee/" + id + "/payments");
+      break;
+    case "open-draw":
+      go("#/committee/" + id + "/draw");
+      break;
+    case "open-share":
+      go("#/committee/" + id + "/share");
+      break;
+    case "edit-committee":
+      go("#/committee/" + id + "/edit");
+      break;
+    case "save-committee": {
+      const data = readCommitteeForm(null);
+      if (!data) return;
+      const c = createCommittee(data);
+      toast(t("saved"));
+      go("#/committee/" + c.id);
+      break;
+    }
+    case "save-edit-committee": {
+      const data = readCommitteeForm();
+      if (!data) return;
+      updateCommittee(id, data);
+      toast(t("saved"));
+      go("#/committee/" + id);
+      break;
+    }
+    case "delete-committee":
+      confirmBox(t("confirmDeleteCommittee"), t("delete")).then(function (yes) {
+        if (yes) { deleteCommittee(id); toast(t("deleted")); go("#/"); }
+      });
+      break;
+    case "backup":
+      go("#/");
+      openBackup();
+      break;
+  }
+});
+
+backEl.addEventListener("click", function () {
+  if (history.length > 1) history.back();
+  else go("#/");
+});
+
+langEl.addEventListener("click", function () {
+  const next = LANG === "en" ? "ur" : "en";
+  setLang(next);
+  saveLang(next);
+  render();
+});
+
+/* backup is implemented in a later commit */
+function openBackup() { toast("Backup"); }
+
+window.addEventListener("hashchange", render);
+
+/* ---------------------------------- start -------------------------------- */
+loadDB();
+setLang(getSavedLang());
+render();
